@@ -1,6 +1,6 @@
 use crate::error::*;
 use std::collections::{HashMap, HashSet};
-use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all, Metadata};
+use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all, Metadata, File};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -13,6 +13,8 @@ pub struct CopyOptions {
     pub skip_exist: bool,
     /// Buffer size that specifies the amount of bytes to be moved or copied before the progress handler is called. This only affects functions with progress handlers. (default: 64000)
     pub buffer_size: usize,
+    /// Sets the option true for preserve times.
+    pub preserve_mtime: bool,
     /// Recursively copy a directory with a new name or place it inside the destination (default: false, same behaviors as cp -r on Unix)
     pub copy_inside: bool,
     /// Copy only contents without a creating a new folder in the destination folder (default: false).
@@ -40,6 +42,7 @@ impl CopyOptions {
             overwrite: false,
             skip_exist: false,
             buffer_size: 64000, // 64kb
+            preserve_mtime: false,
             copy_inside: false,
             content_only: false,
             depth: 0,
@@ -61,6 +64,12 @@ impl CopyOptions {
     /// Buffer size that specifies the amount of bytes to be moved or copied before the progress handler is called. This only affects functions with progress handlers.
     pub fn buffer_size(mut self, buffer_size: usize) -> Self {
         self.buffer_size = buffer_size;
+        self
+    }
+
+    /// Preserve modification times if true.
+    pub fn preserve_mtime(mut self, preserve_mtime: bool) -> Self {
+        self.preserve_mtime = preserve_mtime;
         self
     }
 
@@ -604,8 +613,10 @@ where
         if !dir.exists() {
             if options.copy_inside {
                 create_all(dir, false)?;
+                //TODO copy mtime on the last item? or all?
             } else {
                 create(dir, false)?;
+                //TODO copy mtime from original dir - HOW TO DO IT?
             }
         }
     }
@@ -619,6 +630,7 @@ where
             overwrite: options.overwrite,
             skip_exist: options.skip_exist,
             buffer_size: options.buffer_size,
+            preserve_mtime: options.preserve_mtime,
         };
         let mut result_copy: Result<u64>;
         let mut work = true;
@@ -931,6 +943,7 @@ where
             overwrite: options.overwrite,
             skip_exist: options.skip_exist,
             buffer_size: options.buffer_size,
+            preserve_mtime: options.preserve_mtime,
         };
 
         if let Some(file_name) = file_name.to_str() {
@@ -1126,6 +1139,7 @@ where
             overwrite: options.overwrite,
             skip_exist: options.skip_exist,
             buffer_size: options.buffer_size,
+            preserve_mtime: options.preserve_mtime,
         };
 
         let mut result_copy: Result<u64>;
@@ -1268,6 +1282,7 @@ where
             overwrite: options.overwrite,
             skip_exist: options.skip_exist,
             buffer_size: options.buffer_size,
+            preserve_mtime: options.preserve_mtime,
         };
 
         if let Some(file_name) = file_name.to_str() {

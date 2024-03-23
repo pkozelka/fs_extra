@@ -12,6 +12,8 @@ pub struct CopyOptions {
     pub skip_exist: bool,
     /// Sets buffer size for copy/move work only with receipt information about process work.
     pub buffer_size: usize,
+    /// Sets the option true for preserve times.
+    pub preserve_mtime: bool,
 }
 
 impl CopyOptions {
@@ -30,6 +32,7 @@ impl CopyOptions {
             overwrite: false,
             skip_exist: false,
             buffer_size: 64000, //64kb
+            preserve_mtime: false,
         }
     }
 
@@ -48,6 +51,12 @@ impl CopyOptions {
     /// Sets buffer size for copy/move work only with receipt information about process work.
     pub fn buffer_size(mut self, buffer_size: usize) -> Self {
         self.buffer_size = buffer_size;
+        self
+    }
+
+    /// Preserve modification times if true.
+    pub fn preserve_mtime(mut self, preserve_mtime: bool) -> Self {
+        self.preserve_mtime = preserve_mtime;
         self
     }
 }
@@ -124,7 +133,14 @@ where
         }
     }
 
-    Ok(std::fs::copy(from, to)?)
+    let copy_result = std::fs::copy(from, &to)?;
+    if options.preserve_mtime {
+        if let Ok(from_metadata) = from.metadata() {
+            let from = File::open(to)?;
+            from_metadata.modified().map(|mtime| from.set_modified(mtime))??;
+        }
+    }
+    Ok(copy_result)
 }
 
 /// Copies the contents of one file to another file with information about progress.
